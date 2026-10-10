@@ -38,7 +38,9 @@ export async function POST(req: Request) {
     created_by: s.id,
   }).select().single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  // Trigger delivery_quantity_check chặn khi giao vượt hợp đồng, khi giao dịch
+  // đã bị đảo, hoặc khi ngày đã khoá sổ. Trả nguyên văn để người dùng hiểu lý do.
+  if (error) return NextResponse.json({ error: error.message }, { status: 409 });
   await audit(s.id, "CREATE_DELIVERY", "delivery", data.id, { trade_id, kg });
   return NextResponse.json(data, { status: 201 });
 }
