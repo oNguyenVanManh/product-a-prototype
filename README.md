@@ -127,8 +127,15 @@ supabase/                     01_schema.sql · 02_seed.sql
 
 ## Tài liệu khác
 
+**LAB-3 — prototype:**
+
 - [`feature-list.md`](./feature-list.md) — làm gì, bỏ gì so với LAB-1, và vì sao
 - [`screen-flow.md`](./screen-flow.md) — luồng di chuyển giữa các màn hình
 - [`AI-report.md`](./AI-report.md) — cách làm việc với AI, chỗ AI sinh sai
+
+**LAB-4 — bộ thiết kế đầy đủ:** [`specs/`](./specs/)
+
+76 tài liệu theo 6 biểu mẫu chuẩn của công ty (BM-2-901-50/51/52/53/54/63), cấu trúc thư mục theo
+QC-01 v1.1.0. Bắt đầu từ [`specs/README.md`](./specs/README.md).
 
 Toàn bộ dữ liệu trong hệ thống là số liệu giả lập.
