@@ -155,3 +155,92 @@ Bốn mục ❓ không phải "chưa làm" mà là **chưa có bằng chứng**.
 | 6 | C-06 luồng phê duyệt điều chỉnh | Cần khách xác nhận ASM-12 trước |
 | 7 | N-06, N-07 interface kế toán và thông báo | Phụ thuộc bên ngoài |
 | 8 | Bốn mục ❓ — đo hiệu năng và khả năng tiếp cận | Cần môi trường có dữ liệu thật |
+
+---
+
+## 7. Kết quả kiểm chứng trên database thật
+
+Ngày 2026-10-11, sau khi nạp schema và dữ liệu mẫu lên Supabase (vùng Tokyo), toàn bộ quy tắc
+nghiệp vụ được kiểm bằng cách gọi thẳng REST API của Supabase bằng khoá `service_role` — tức
+**bỏ qua hoàn toàn tầng ứng dụng**. Đây là phép thử đúng nghĩa cho ADR-002: nếu quy tắc chỉ nằm ở
+tầng API thì những lệnh dưới đây đều lọt.
+
+### 7.1 Dữ liệu đã nạp
+
+| Bảng | Số dòng | | Chỉ số | Giá trị |
+|---|---|---|---|---|
+| `party` | 20 | | tỷ lệ 相対取引 | **87,8%** |
+| `party_qualification` | 11 | | dòng đảo | 1 |
+| `lot` | 48 | | ngày đã khoá sổ | 3 |
+| `inspection` | 48 | | | |
+| `trade` | 67 | | | |
+| `delivery` | 66 | | | |
+| `settlement_day` | 12 | | | |
+| `rate_version` | 2 | | | |
+| `payment_status` | 52 | | | |
+
+Tỷ lệ 87,8% dao động quanh 90% vì script seed dùng `random()` cho khối lượng và số lần bán mỗi lô.
+
+### 7.2 Sáu lệnh ghi vi phạm — cả sáu đều bị chặn
+
+| # | Lệnh thử | Kết quả | Thông điệp từ trigger |
+|---|---|---|---|
+| 1 | Gán 許可 cho BY-01 (買出人) | ✅ chặn | *Giấy phép 許可 chỉ cấp cho 仲卸, không cấp cho buyer.* |
+| 2 | Gán 承認 cho một 仲卸 | ✅ chặn | *Chấp thuận 承認 chỉ cấp cho 売買参加者, không cấp cho intermediate.* |
+| 3 | `UPDATE` bảng `trade` | ✅ chặn | *Bảng trade là sổ ghi-thêm: không được UPDATE.* |
+| 4 | `DELETE` bảng `trade` | ✅ chặn | *Bảng trade là sổ ghi-thêm: không được DELETE.* |
+| 5 | Chốt giao dịch vào ngày đã khoá | ✅ chặn | *Ngày nghiệp vụ 2026-09-28 đã khoá sổ.* |
+| 6 | Ghi giao hàng vượt hợp đồng | ✅ chặn | xem 7.3 |
+
+Sau khi chạy hết, số dòng của `trade`, `party_qualification` và `delivery` **không đổi** — không
+lệnh vi phạm nào để lại dữ liệu bẩn.
+
+### 7.3 Phép cộng dồn giao hàng — kiểm ở biên
+
+Lần thử đầu bốc trúng giao dịch đã bị đảo trong dữ liệu mẫu, nên bị chặn vì *"đã bị huỷ"* chứ chưa
+thực sự kiểm phép cộng dồn. Chạy lại với giao dịch chưa đảo, thuộc ngày chưa khoá sổ:
+
+| Thử | Kết quả |
+|---|---|
+| Giao gấp 10 lần hợp đồng (502 kg / 50,2 kg) | ✅ chặn — *đã giao 50,20 kg, lần này 502,00 kg, hợp đồng chỉ 50,20 kg* |
+| Giao vượt **đúng 0,01 kg** | ✅ chặn — thông điệp tương tự |
+
+Chặn đúng tới đơn vị nhỏ nhất, và thông điệp nêu đủ ba con số để người dùng hiểu ngay vì sao.
+
+### 7.4 ADR-003 — tra biểu suất theo ngày nghiệp vụ
+
+Gọi API tính thưởng hai lần liên tiếp, **cùng một thời điểm**, chỉ khác ngày nghiệp vụ:
+
+| Ngày nghiệp vụ | Phiên bản được dùng | Tỷ lệ | Hiệu lực từ |
+|---|---|---|---|
+| 2026-09-29 | **v1** | 1,5% | 2026-01-01 |
+| 2026-10-06 | **v2** | 2,0% | 2026-10-05 |
+
+Nếu cài sai thành "lấy bản mới nhất" thì cả hai ngày đều ra v2. Đây là bằng chứng trực tiếp cho
+ADR-003.
+
+### 7.5 Phân quyền và bảo vệ cổng vào
+
+| Thử | Kết quả |
+|---|---|
+| Vai trò Giao hàng gọi API khoá sổ | ✅ HTTP 403 — *Chỉ bộ phận đối soát hoặc quản trị mới được khoá sổ* |
+| Gọi `/api/trades` khi chưa đăng nhập | ✅ HTTP 401 — *Chưa đăng nhập* |
+
+### 7.6 Cập nhật bốn mục trước đây "chưa đo"
+
+| Mã | Trước | Sau khi kiểm |
+|---|---|---|
+| NFR-SEC-04 | ✅ | giữ nguyên — `.env.local` bị `.gitignore` chặn, đã xác nhận |
+| NFR-PRIV-01 | ❓ | ✅ **đã đáp ứng** — project Supabase tạo ở vùng Northeast Asia (Tokyo) |
+| NFR-PERF-01/02 | ❓ | vẫn ❓ — 67 giao dịch quá ít để kết luận. Cần bộ dữ liệu theo FIG-LOAD-01 |
+| NFR-A11Y-01 | ❓ | vẫn ❓ — cần chạy công cụ kiểm tự động |
+
+### 7.7 Một khiếm khuyết phát hiện trong lúc kiểm
+
+Khi `.env.local` chưa điền, API đăng nhập ném lỗi chưa bắt, Next.js trả về trang HTML thay vì
+JSON. Trang login gọi `r.json()` nên nghẹn, nút kẹt ở *"Đang kiểm tra…"* và **không hiện lỗi gì**.
+
+Người dùng không có cách nào biết nguyên nhân. Đã sửa: API bọc `try/catch` trả JSON kèm thông điệp
+gốc, trang login đọc dạng text trước rồi mới phân tích, và `setBusy(false)` chuyển vào `finally`.
+
+Bài học cùng loại với L-01 và N-05: **thứ gì đó hỏng im lặng thì tệ hơn thứ hỏng ồn ào.**

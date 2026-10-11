@@ -25,16 +25,35 @@ function LoginForm() {
     e.preventDefault();
     setBusy(true);
     setErr("");
-    const r = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const j = await r.json();
-    setBusy(false);
-    if (!r.ok) return setErr(j.error ?? "Đăng nhập không thành công");
-    router.push(next);
-    router.refresh();
+    try {
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      // Phản hồi không phải JSON nghĩa là máy chủ ném lỗi chưa bắt được.
+      // Đọc dạng text rồi báo ra, đừng để fetch nghẹn làm nút kẹt mãi.
+      const raw = await r.text();
+      let j: { error?: string } = {};
+      try {
+        j = JSON.parse(raw);
+      } catch {
+        setErr(`Máy chủ trả về lỗi ${r.status}. Kiểm tra .env.local đã điền đủ chưa.`);
+        return;
+      }
+
+      if (!r.ok) {
+        setErr(j.error ?? "Đăng nhập không thành công");
+        return;
+      }
+      router.push(next);
+      router.refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Không gọi được máy chủ");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
