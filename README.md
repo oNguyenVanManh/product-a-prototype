@@ -12,8 +12,13 @@ Khách hàng hư cấu: **Công ty CP Chợ Thủy sản Vịnh Sakura** (桜水
 
 | | |
 |---|---|
-| URL | _(điền sau khi deploy Vercel)_ |
+| **URL** | **<https://product-a-prototype-smoky.vercel.app>** |
 | Mật khẩu chung | `sakura2026` |
+| Triển khai trên | Vercel · database Supabase vùng Tokyo |
+
+> ⚠️ **Nếu mở ra thấy trống dữ liệu:** Supabase bản miễn phí tự tạm dừng project sau 7 ngày không
+> có truy vấn nào. App vẫn chạy nhưng không đọc được dữ liệu. Chủ dự án vào Supabase dashboard bấm
+> **Restore project**, khoảng một phút sau là chạy lại bình thường.
 
 Sáu tài khoản demo, mỗi tài khoản một vai trò nghiệp vụ khác nhau:
 
@@ -28,6 +33,18 @@ Sáu tài khoản demo, mỗi tài khoản một vai trò nghiệp vụ khác nh
 
 Đăng nhập bằng vai trò **Giao hàng** rồi thử khoá sổ ở màn hình Đối soát — hệ thống sẽ từ chối.
 Đó là phân quyền thật ở tầng API, không phải ẩn nút.
+
+### Bốn thứ đáng thử trong 5 phút
+
+| # | Thử gì | Mong đợi |
+|---|---|---|
+| 1 | Mở URL khi chưa đăng nhập | Tự chuyển về `/login?next=…`, không xem được nội dung nào |
+| 2 | Vai trò **Giao hàng** → màn Đối soát → bấm Khoá sổ | Lỗi 403, phân quyền ở tầng API chứ không phải ẩn nút |
+| 3 | Vai trò **Chốt giao dịch** → màn Giao dịch → bấm **Huỷ** một dòng | Dòng gốc bị gạch ngang nhưng **vẫn còn trong sổ**, xuất hiện dòng đảo nền đỏ |
+| 4 | Vai trò **Đối soát** → màn Tiền khuyến khích → tính cho `2026-09-29` rồi `2026-10-06` | Hai ngày dùng **hai phiên bản biểu suất khác nhau** (v1 1,5% và v2 2,0%) dù bấm cùng lúc |
+
+Thứ 3 và thứ 4 là hai quy tắc nghiệp vụ lõi của đề, đều thi hành bằng trigger ở tầng database —
+gọi thẳng API bằng `curl` cũng không lách được.
 
 ---
 
